@@ -40,7 +40,7 @@ O Tesseract precisa ser instalado separadamente no sistema:
 
 ### 3. Chave de API
 
-Crie uma conta no [OpenRouter](https://openrouter.ai) e obtenha sua chave de API. O modelo usado por padrão é o `x-ai/grok-4-fast`.
+Crie uma conta no [OpenRouter](https://openrouter.ai) e obtenha sua chave de API.
 
 ---
 
@@ -135,9 +135,11 @@ O resultado é um arquivo `.txt` com um resumo e a lista detalhada por data.
 ## Estrutura dos arquivos
 
 ```
-extração_de_noticias/
-├── extractor.py              # Funções principais de extração
-├── extractor.ipynb           # Notebook para extração de texto
-├── detect_missing_pages.ipynb  # Notebook para verificar integridade da coleção
-└── README.md                 # Este arquivo
+lemep_newspaper_extract/
+├── extractor.py                  # Funções principais de extração
+├── extractor.ipynb               # Notebook para extração de texto
+├── detect_missing_pages.ipynb    # Notebook para verificar integridade da coleção
+├── index.html                    # Página do projeto
+├── data/                         # Dados de saída
+└── README.md                     # Este arquivo
 ```
