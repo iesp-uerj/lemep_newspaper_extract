@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Extração de Textos de Jornais</title>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --paper: #f5f0e8;
+    --cream: #ede8da;
+    --rule: #c8b99a;
+    --accent: #8b1a1a;
+    --accent-light: #b02020;
+    --code-bg: #2b2b2b;
+    --code-fg: #f8f8f2;
+    --shadow: rgba(0,0,0,.12);
+  }
+  html { scroll-behavior: smooth; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Georgia", serif;
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.6;
+  }
+
+  /* ── NAVBAR ────────────────────────────────────────── */
+  .navbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(26,26,26,.96);
+    backdrop-filter: blur(6px);
+    border-bottom: 1px solid rgba(200,185,154,.25);
+    padding: 0 24px;
+  }
+  .navbar-inner {
+    max-width: 1000px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    height: 48px;
+  }
+  .navbar-brand {
+    font-family: "Courier New", monospace;
+    font-size: .75rem;
+    letter-spacing: .12em;
+    color: var(--rule);
+    text-transform: uppercase;
+    margin-right: auto;
+    white-space: nowrap;
+  }
+  .navbar-links {
+    display: flex;
+    gap: 4px;
+  }
+  .navbar-links a {
+    color: #bbb;
+    text-decoration: none;
+    font-family: "Courier New", monospace;
+    font-size: .78rem;
+    letter-spacing: .06em;
+    padding: 6px 14px;
+    border-radius: 4px;
+    transition: color .15s, background .15s;
+    white-space: nowrap;
+  }
+  .navbar-links a:hover {
+    color: var(--paper);
+    background: rgba(255,255,255,.08);
+  }
+
+  /* ── HERO ─────────────────────────────────────────── */
+  .hero {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 72px 24px 60px;
+    text-align: center;
+    border-bottom: 6px double var(--rule);
+  }
+  .hero-eyebrow {
+    font-size: .8rem;
+    letter-spacing: .25em;
+    text-transform: uppercase;
+    color: var(--rule);
+    margin-bottom: 16px;
+  }
+  .hero h1 {
+    font-size: clamp(2rem, 5vw, 3.4rem);
+    font-weight: 700;
+    line-height: 1.15;
+    margin-bottom: 20px;
+    letter-spacing: -.02em;
+  }
+  .hero p {
+    max-width: 640px;
+    margin: 0 auto;
+    font-size: 1.1rem;
+    color: #ccc;
+    font-style: italic;
+  }
+  .hero-badges {
+    margin-top: 28px;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .badge {
+    background: rgba(255,255,255,.08);
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: .78rem;
+    font-family: "Courier New", monospace;
+    color: #ddd;
+    letter-spacing: .04em;
+  }
+
+  /* ── SECTIONS ─────────────────────────────────────── */
+  section { padding: 72px 24px; }
+  section:nth-child(even) { background: var(--cream); }
+  .container { max-width: 1000px; margin: 0 auto; }
+  .section-label {
+    font-size: .72rem;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-family: "Courier New", monospace;
+    margin-bottom: 8px;
+  }
+  h2 {
+    font-size: clamp(1.5rem, 3vw, 2.2rem);
+    margin-bottom: 16px;
+    border-bottom: 2px solid var(--rule);
+    padding-bottom: 12px;
+  }
+  h3 { font-size: 1.2rem; margin-bottom: 8px; }
+  p { margin-bottom: 14px; }
+
+  /* ── PIPELINE ─────────────────────────────────────── */
+  .pipeline {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    margin-top: 40px;
+    flex-wrap: wrap;
+  }
+  .pipeline-step {
+    flex: 1;
+    min-width: 180px;
+    background: white;
+    border: 1px solid var(--rule);
+    padding: 28px 24px;
+    position: relative;
+    text-align: center;
+  }
+  .pipeline-step:not(:last-child)::after {
+    content: "→";
+    position: absolute;
+    right: -18px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.6rem;
+    color: var(--accent);
+    z-index: 2;
+  }
+  .step-icon {
+    font-size: 2.4rem;
+    margin-bottom: 12px;
+    display: block;
+  }
+  .step-num {
+    display: inline-block;
+    background: var(--accent);
+    color: white;
+    font-size: .7rem;
+    font-family: "Courier New", monospace;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    letter-spacing: .08em;
+  }
+  .step-title {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .step-desc {
+    font-size: .85rem;
+    color: #555;
+    font-style: italic;
+    line-height: 1.5;
+    margin: 0;
+  }
+  .step-tag {
+    display: inline-block;
+    margin-top: 10px;
+    background: var(--cream);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    font-family: "Courier New", monospace;
+    font-size: .72rem;
+    padding: 3px 8px;
+    color: var(--accent);
+  }
+
+  /* ── EXAMPLES ─────────────────────────────────────── */
+  .example-nav {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+  }
+  .nav-btn {
+    background: var(--ink);
+    color: var(--paper);
+    border: none;
+    padding: 10px 20px;
+    font-family: "Courier New", monospace;
+    font-size: .9rem;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background .2s;
+  }
+  .nav-btn:hover { background: var(--accent); }
+  .nav-btn:disabled { background: #aaa; cursor: default; }
+  .nav-label {
+    font-family: "Courier New", monospace;
+    font-size: .85rem;
+    color: #666;
+  }
+  .nav-dots {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+  }
+  .dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--rule);
+    cursor: pointer;
+    transition: background .2s;
+    border: none;
+  }
+  .dot.active { background: var(--accent); }
+
+  .example-panel {
+    display: none;
+  }
+  .example-panel.active {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+    align-items: start;
+  }
+  @media (max-width: 700px) {
+    .example-panel.active { grid-template-columns: 1fr; }
+    .pipeline { flex-direction: column; }
+    .pipeline-step:not(:last-child)::after { content: "↓"; right: auto; left: 50%; top: auto; bottom: -22px; transform: translateX(-50%); }
+    .pipeline-step { margin-bottom: 20px; }
+  }
+
+  .img-wrapper {
+    position: relative;
+    border: 2px solid var(--rule);
+    background: #222;
+    border-radius: 2px;
+  }
+  .img-wrapper img {
+    width: 100%;
+    display: block;
+  }
+  .img-meta {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(0,0,0,.72);
+    color: white;
+    padding: 8px 12px;
+    font-family: "Courier New", monospace;
+    font-size: .78rem;
+    letter-spacing: .06em;
+  }
+
+  .articles-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  .articles-panel::-webkit-scrollbar { width: 5px; }
+  .articles-panel::-webkit-scrollbar-track { background: var(--cream); }
+  .articles-panel::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 4px; }
+
+  .article-card {
+    background: white;
+    border: 1px solid var(--rule);
+    border-left: 4px solid var(--accent);
+    padding: 16px 18px;
+    cursor: pointer;
+    transition: box-shadow .2s;
+    border-radius: 2px;
+  }
+  .article-card:hover { box-shadow: 0 3px 12px var(--shadow); }
+  .article-tipo {
+    font-family: "Courier New", monospace;
+    font-size: .7rem;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: var(--accent);
+    margin-bottom: 5px;
+  }
+  .article-titulo {
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.3;
+    margin-bottom: 5px;
+  }
+  .article-autor {
+    font-size: .8rem;
+    font-style: italic;
+    color: #777;
+    margin-bottom: 10px;
+  }
+  .article-texto {
+    font-size: .85rem;
+    line-height: 1.6;
+    color: #333;
+    display: none;
+    border-top: 1px solid var(--rule);
+    padding-top: 10px;
+    margin-top: 4px;
+  }
+  .article-card.open .article-texto { display: block; }
+  .article-toggle {
+    font-family: "Courier New", monospace;
+    font-size: .72rem;
+    color: var(--accent);
+    cursor: pointer;
+  }
+  .article-card.open .article-toggle::before { content: "▲ recolher"; }
+  .article-card:not(.open) .article-toggle::before { content: "▼ ler texto completo"; }
+
+  /* ── HOW TO RUN ───────────────────────────────────── */
+  .steps-list { list-style: none; counter-reset: step-cnt; margin-top: 28px; }
+  .steps-list li {
+    counter-increment: step-cnt;
+    display: flex;
+    gap: 20px;
+    margin-bottom: 32px;
+    align-items: flex-start;
+  }
+  .steps-list li::before {
+    content: counter(step-cnt);
+    flex-shrink: 0;
+    width: 36px; height: 36px;
+    background: var(--accent);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: .9rem;
+    margin-top: 2px;
+  }
+  .step-body h3 { margin-bottom: 6px; }
+  pre {
+    background: var(--code-bg);
+    color: var(--code-fg);
+    padding: 16px 20px;
+    border-radius: 6px;
+    font-family: "Courier New", monospace;
+    font-size: .82rem;
+    overflow-x: auto;
+    margin-top: 10px;
+    line-height: 1.7;
+  }
+  code {
+    background: rgba(139,26,26,.1);
+    color: var(--accent);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-family: "Courier New", monospace;
+    font-size: .88em;
+  }
+  pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
+
+  .output-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 16px;
+    font-size: .88rem;
+  }
+  .output-table th {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 8px 14px;
+    text-align: left;
+    font-family: "Courier New", monospace;
+    font-size: .8rem;
+    letter-spacing: .06em;
+  }
+  .output-table td {
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .output-table tr:nth-child(even) td { background: var(--cream); }
+
+  /* ── FOOTER ───────────────────────────────────────── */
+  footer {
+    background: var(--ink);
+    color: #aaa;
+    text-align: center;
+    padding: 32px 24px;
+    font-size: .82rem;
+    font-family: "Courier New", monospace;
+    letter-spacing: .04em;
+  }
+  footer a { color: var(--rule); }
+</style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <div class="navbar-inner">
+    <span class="navbar-brand">IESP-UERJ &nbsp;·&nbsp; LEMEP</span>
+    <div class="navbar-links">
+      <a href="#como-funciona">Como funciona</a>
+      <a href="#exemplos">Exemplos</a>
+      <a href="#como-usar">Como usar</a>
+      <a href="https://github.com/YOUR_USER/YOUR_REPO" target="_blank" style="border:1px solid rgba(200,185,154,.35);margin-left:8px;">GitHub →</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<header class="hero">
+  <p class="hero-eyebrow">IESP-UERJ &nbsp;·&nbsp; LEMEP</p>
+  <h1>Extração de Textos<br>de Páginas de Jornal</h1>
+  <p>Pipeline automatizado que combina OCR e modelos de visão para digitalizar e estruturar artigos de páginas de jornal digitalizadas.</p>
+  <div class="hero-badges">
+    <span class="badge">pytesseract</span>
+    <span class="badge">openrouter</span>
+    <span class="badge">LLM</span>
+    <span class="badge">pandas</span>
+    <span class="badge">openpyxl</span>
+  </div>
+</header>
+
+<!-- PIPELINE -->
+<section id="como-funciona">
+  <div class="container">
+    <p class="section-label">01 &mdash; Processo</p>
+    <h2>Como funciona</h2>
+    <p>Para cada imagem de página de jornal, o pipeline executa três etapas em sequência. O OCR faz uma leitura rápida do texto bruto, o modelo de visão corrige erros e estrutura os artigos, e os resultados são consolidados em Excel.</p>
+
+    <div class="pipeline">
+      <div class="pipeline-step">
+        <span class="step-icon">🗞️</span>
+        <span class="step-num">entrada</span>
+        <div class="step-title">Imagem JPG</div>
+        <p class="step-desc">Foto ou scan da página do jornal no formato <code>YYYY-MM-DD_PAGINA.jpg</code></p>
+        <span class="step-tag">1 600 × 2 770 px</span>
+      </div>
+      <div class="pipeline-step">
+        <span class="step-icon">🔍</span>
+        <span class="step-num">etapa 1</span>
+        <div class="step-title">OCR</div>
+        <p class="step-desc">Pytesseract faz a leitura inicial do texto (rápida, mas com erros de ordem e reconhecimento)</p>
+        <span class="step-tag">pytesseract</span>
+      </div>
+      <div class="pipeline-step">
+        <span class="step-icon">🤖</span>
+        <span class="step-num">etapa 2</span>
+        <div class="step-title">API de Visão</div>
+        <p class="step-desc">LLM recebe imagem + texto OCR, corrige erros e extrai artigos estruturados em JSON</p>
+        <span class="step-tag">grok-4-fast</span>
+      </div>
+      <div class="pipeline-step">
+        <span class="step-icon">📊</span>
+        <span class="step-num">saída</span>
+        <div class="step-title">Excel</div>
+        <p class="step-desc">Uma linha por artigo, com título, autor, texto completo e metadados de publicação</p>
+        <span class="step-tag">.xlsx</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- EXAMPLES -->
+<section id="exemplos">
+  <div class="container">
+    <p class="section-label">02 &mdash; Exemplos</p>
+    <h2>Extrações em ação</h2>
+    <p>Clique nos artigos para expandir o texto extraído. Use as setas para navegar entre as páginas da amostra.</p>
+
+    <div class="example-nav">
+      <button class="nav-btn" id="prev-btn" onclick="navigate(-1)" disabled>← anterior</button>
+      <span class="nav-label" id="nav-label"></span>
+      <button class="nav-btn" id="next-btn" onclick="navigate(1)">próxima →</button>
+      <div class="nav-dots" id="nav-dots"></div>
+    </div>
+
+    <div id="panels-container"></div>
+  </div>
+</section>
+
+<!-- HOW TO RUN -->
+<section id="como-usar">
+  <div class="container">
+    <p class="section-label">03 &mdash; Guia de uso</p>
+    <h2>Como rodar o extrator</h2>
+    <p>O projeto tem dois modos de uso: via notebook Jupyter (recomendado para exploração) ou diretamente pelo Python.</p>
+
+    <ol class="steps-list">
+      <li>
+        <div class="step-body">
+          <h3>Instalar dependências Python</h3>
+          <p>Todas as bibliotecas estão disponíveis via pip:</p>
+          <pre><code>pip install openai pandas pillow pytesseract openpyxl</code></pre>
+        </div>
+      </li>
+      <li>
+        <div class="step-body">
+          <h3>Instalar o Tesseract OCR no sistema</h3>
+          <p>O Tesseract é um binário separado que precisa estar instalado antes de rodar:</p>
+          <pre><code># macOS
+brew install tesseract tesseract-lang
+
+# Linux (Ubuntu/Debian)
+sudo apt install tesseract-ocr tesseract-ocr-por
+
+# Windows
+# Baixar instalador em github.com/UB-Mannheim/tesseract/wiki</code></pre>
+        </div>
+      </li>
+      <li>
+        <div class="step-body">
+          <h3>Obter chave de API do OpenRouter</h3>
+          <p>Crie uma conta em <strong>openrouter.ai</strong> e gere uma chave de API. O modelo padrão usado é <code>x-ai/grok-4-fast</code>.</p>
+        </div>
+      </li>
+      <li>
+        <div class="step-body">
+          <h3>Organizar as imagens</h3>
+          <p>Os arquivos devem seguir o padrão <code>YYYY-MM-DD_PAGINA.jpg</code>:</p>
+          <pre><code>imagens/
+├── 2012-03-01_002.jpg   →  1 de março de 2012, página 2
+├── 2012-03-01_003.jpg   →  1 de março de 2012, página 3
+└── 2012-03-03_002.jpg   →  3 de março de 2012, página 2</code></pre>
+        </div>
+      </li>
+      <li>
+        <div class="step-body">
+          <h3>Executar pelo notebook (recomendado)</h3>
+          <p>Abra <code>extractor.ipynb</code> e preencha as 4 variáveis na célula de configuração:</p>
+          <pre><code>API_KEY      = "sua-chave-aqui"
+INPUT_FOLDER = "caminho/para/as/imagens"
+OUTPUT_XLSX  = "resultados.xlsx"
+JORNAL_NAME  = "FSP"</code></pre>
+          <p style="margin-top:10px">Depois execute as células em ordem. O script salva progresso automaticamente a cada 20 imagens &mdash; se a execução for interrompida, basta rodar de novo e ele continua de onde parou.</p>
+        </div>
+      </li>
+      <li>
+        <div class="step-body">
+          <h3>Ou executar pelo Python diretamente</h3>
+          <pre><code>from openai import OpenAI
+from extractor import process_folder
+
+client = OpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key="sua-chave-aqui",
+)
+
+df = process_folder(
+    input_folder="caminho/para/as/imagens",
+    output_xlsx="resultados.xlsx",
+    client=client,
+    news_name="FSP",
+)</code></pre>
+        </div>
+      </li>
+    </ol>
+
+    <h3 style="margin-top:8px;margin-bottom:14px;">Estrutura do Excel gerado</h3>
+    <table class="output-table">
+      <thead>
+        <tr>
+          <th>Coluna</th>
+          <th>Descrição</th>
+          <th>Exemplo</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td><code>Jornal</code></td><td>Nome do jornal informado</td><td>FSP</td></tr>
+        <tr><td><code>Ano</code></td><td>Ano da edição</td><td>2012</td></tr>
+        <tr><td><code>Arquivo</code></td><td>Nome do arquivo de origem</td><td>2012-03-01_002.jpg</td></tr>
+        <tr><td><code>Data</code></td><td>Data da edição (datetime)</td><td>2012-03-01</td></tr>
+        <tr><td><code>Página</code></td><td>Número da página</td><td>2</td></tr>
+        <tr><td><code>Título</code></td><td>Título do artigo</td><td>Muito além do câmbio</td></tr>
+        <tr><td><code>Autor</code></td><td>Autor ou "Desconhecido"</td><td>Desconhecido</td></tr>
+        <tr><td><code>Texto Associado</code></td><td>Texto completo do artigo</td><td><em>(múltiplos parágrafos)</em></td></tr>
+        <tr><td><code>Tipo</code></td><td>Editorial ou Artigo de Opinião</td><td>Editorial</td></tr>
+      </tbody>
+    </table>
+
+    <div style="margin-top:36px;padding:20px 24px;border:1px solid var(--rule);border-left:4px solid var(--accent);background:white;">
+      <h3 style="margin-bottom:8px;">Verificação de integridade da coleção</h3>
+      <p style="margin:0;font-size:.9rem;">Antes de rodar a extração em lote, use <code>detect_missing_pages.ipynb</code> para verificar se há datas ou páginas faltando na coleção de imagens. O notebook gera um relatório <code>.txt</code> com a lista completa de problemas encontrados.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  IESP-UERJ &nbsp;·&nbsp; LEMEP &nbsp;·&nbsp; 2026
+  &nbsp;&nbsp;|&nbsp;&nbsp;
+  <a href="https://github.com/YOUR_USER/YOUR_REPO" target="_blank">GitHub →</a>
+</footer>
+
+<script>
+const DATA = {"2012-03-01_p002": [{"titulo": "Muito além do câmbio", "autor": "Desconhecido", "texto": "Queixume da indústria sobre valorização do real tira o foco de questões como a inflação de custos, que prejudicam bem mais as exportações. A indústria brasileira sofre cada vez mais com a perda do ímpeto exportador e o aumento da penetração de produtos importados. Há três anos a indústria não cresce. O patamar de produção industrial permanece abaixo do alcançado antes da crise financeira de 2008. Já o consumo expandiu-se 30% no mesmo intervalo. Tornou-se comum culpar a taxa de câmbio pela letargia. À primeira vista, faz sentido. Do início de 2004 até fevereiro deste ano, o real valorizou-se quase 44%, encarecendo os produtos exportados. Num mundo cada vez mais caracterizado pela desvalorização das principais moedas (a “guerra cambial” de que fala o ministro da Fazenda, Guido Mantega), é claro que o país tem prejuízo com câmbio valorizado. Há, porém, muitas outras razões estruturais para explicar a retração industrial. A questão do custo interno de produção aparece em primeiro plano. O Brasil é um país de inflação superior aos padrões internacionais. Por conta da elevada indexação à taxa inflacionária, os custos da economia como um todo sobem de modo persistente. Os preços internos sobem de 5% a 6% ao ano no país, em média. Nos países desenvolvidos e emergentes, crescem em torno de 2% a 3% anuais. Não é preciso um prazo muito longo para ocorrer uma perda de competitividade até mais representativa que a do câmbio. Enquanto a economia era fechada, sem competição externa, bastava repassar custos aos preços. Hoje isso não é mais possível, porque os produtos nacionais estão expostos à concorrência dos importados. E o quadro se torna ainda mais preocupante quando se analisa a inflação dos itens que importam para a produção. A mão de obra é um deles, talvez o principal. Nos EUA, não existe inflação de mão de obra — a produtividade tem crescido de 3% a 4% ao ano na indústria, em linha com os salários que paga. No Brasil, a produtividade industrial está estagnada, e os salários sobem em ritmo chinês, a 10% anuais. O ônus criado por essa diferença suplanta em poucos anos o peso do câmbio. A energia, outro custo importante, é mais de duas vezes mais cara que a média internacional. A principal razão está nos impostos, que representam 35% da tarifa. As associações industriais, por miopia, focalizam o câmbio como problema principal. O governo agradece, pois não tem muito o que fazer com ele, que responde a variáveis fora de seu controle. Bem mais trabalhoso seria enfrentar a agenda de desoneração progressiva de impostos, desindexação da economia, qualificação de mão de obra e redução de custos logísticos. Sem isso, a indústria continuará perdendo terreno, com qualquer taxa de câmbio.", "tipo": "Editorial"}, {"titulo": "Guerrilha encurralada", "autor": "Desconhecido", "texto": "As Farc (Forças Armadas Revolucionárias da Colômbia) anunciaram a intenção de suspender o sequestro de civis, no futuro, e libertar seus dez últimos “prisioneiros de guerra”, numa referência aos militares e policiais que ainda mantém como reféns. Estima-se que outros 400 a 700 prisioneiros estejam em poder da organização de guerrilha. Ao anúncio, recebido com cautela e ceticismo pelo presidente da Colômbia, Juan Manuel Santos, seguiu-se mais um ato terrorista por parte das Farc. Na segunda-feira, o grupo usou morteiros e bombas para atacar um posto militar e uma delegacia de polícia, no sudoeste daquele país. Os dois gestos, em aparência paradoxais, são sintomáticos do enfraquecimento da narcoguerrilha, resultante da bem-sucedida estratégia de confronto com o grupo adotada pelos governos de Santos e seu antecessor, Álvaro Uribe. As Farc acenam com a oferta de retomar negociações de paz com os poderes constituídos na Colômbia. Mas sua aparente disposição para o diálogo só cresce na medida em que sofre sucessivas perdas territoriais e de poderio militar. O desmonte da organização se reflete no contingente de guerrilheiros em serviço, reduzido a menos da metade dos 20 mil homens que há uma década arregimentava. Após controlar militarmente até 40% do território, as Farc encontram-se hoje confinadas em regiões fronteiriças e de selva. Alguns de seus principais líderes foram mortos em confrontos. A diminuição de sua área de atividade e a pressão eficaz das forças de segurança do país tornaram mais difícil a prática de sequestros por parte do grupo. São razões práticas, e não a súbita manifestação de alguma consciência moral, que explicam o anunciado abandono dessas ações. A perda de território também estrangula outra principal fonte de recursos do grupo: o narcotráfico. Encurraladas, as Farc vêm agora pedir ao governo que se sente à mesa de negociação e aceite a troca de prisioneiros. Um simples aceno retórico não basta, respondeu Santos, e com razão. É preciso que o grupo abandone suas atividades criminosas e liberte as centenas de civis que ainda mantém como reféns, muitos há mais de uma década sem ver a família. Mais cedo ou mais tarde, chegará ao fim essa organização anacrônica, delinquente e cruel. Seu desmonte representará uma vitória para a democracia na Colômbia e na América Latina.", "tipo": "Artigo de Opinião"}, {"titulo": "Professores reprovados", "autor": "Rogério Gentile", "texto": "SÃO PAULO - O ensino público em São Paulo, no que depender da engenhosidade do governador Geraldo Alckmin, não corre o menor risco de melhorar nos próximos anos. Pela terceira vez seguida, diante da dificuldade em preencher as vagas abertas no corpo docente das escolas, o governo paulista autorizou a contratação de professores reprovados em um teste de seleção aplicado pelo próprio Estado. Ou seja, o contribuinte paulista vai continuar a pagar alguém para ensinar aquilo que não sabe para os seus filhos. Será que era esse o tipo de solução que o tucano se propunha oferecer quando, na eleição de 2010, dizia que “governar é enfrentar problemas e concretizar sonhos”? A falta de professor não é um tema novo. Em 2007, o Conselho Nacional de Educação divulgou um relatório no qual tratava do assunto e dizia temer um verdadeiro “apagão” no futuro. De fato, estima-se que haja atualmente uma carência de mais de 300 mil docentes no país, sobretudo para áreas como matemática, física, biologia e química. As razões para esse desinteresse pela profissão são várias e tão antigas quanto óbvias. A carreira perdeu prestígio, as faculdades são, muitas vezes, ruins e desestimulantes e, claro, o salário é baixo — um professor iniciante recebe R$ 1.988,83 em SP, valor semelhante à média que se paga, por exemplo, para um marceneiro (R$ 1.969) e para um serralheiro (R$ 1.927), segundo o Datafolha. Mas será que simplesmente reduzir as exigências e contratar qualquer um, como faz o governo, é a melhor maneira de encarar a situação? Alckmin costuma dizer que o Estado é o motor do país. Pois, em vez de desistir da qualidade e se conformar com a debilidade do ensino público oferecido aqui, deveria criar algum tipo de estímulo para tentar atrair os melhores formandos para a rede estadual. E utilizar a USP, a Unicamp e a Unesp para reciclar e recapacitar esses professores que há anos vão mal nos testes de seleção.", "tipo": "Artigo de Opinião"}, {"titulo": "Uma vela para Deus, outra...", "autor": "Eliane Catanhêde", "texto": "BRASÍLIA - Ao nomear Marcelo Crivella para o Ministério da Pesca, a presidente Dilma Rousseff tenta matar dois coelhos com uma cajadada só, ou melhor, com uma canetada só. Quer satisfazer o PRB e, ao mesmo tempo, acalmar os evangélicos, de olho no Congresso e na eleição para a Prefeitura de São Paulo. Crivella é senador do PRB, partido que não tinha nenhum ministério até agora, coitado, e tem um nome para a prefeitura, Celso Russomanno, que lidera as pesquisas e pode tirar votos do candidato do PT, Fernando Haddad. Uma coisa — o ministério — pode compensar a outra — o fim da candidatura de Russomanno. Mais que isso, Crivella é bispo da Igreja Universal do Reino de Deus e influente integrante da chamada “bancada evangélica”, que anda de mau humor com o Planalto e com Haddad por erros e por acertos do governo: a nomeação da ministra Eleonora Menicucci (Mulheres), defensora assumida do aborto; a convocação do ministro Gilberto Carvalho (Secretaria-Geral da Presidência) para que as esquerdas travem uma “disputa ideológica” com as igrejas pela “nova classe média”; e o kit anti-homofobia do MEC à época de Haddad. Colocados os dados políticos da escolha de Crivella, vem a pergunta que não quer calar: o que o senador evangélico entende de pesca? Provavelmente, nada, o que não é nem mais nem menos do que seus antecessores no governo Dilma, os petistas Luiz Sérgio, que conseguiu a proeza de pescar duas demissões num único governo, e Ideli Salvatti, que virou ministra da articulação política e foi jogar o arrastão em águas mais profundas — no Congresso. Essas escolhas apenas comprovam que o Ministério da Pesca é uma abstração e foi criado exatamente para isso: acomodar interesses e aliados políticos, além de justificar uma penca de emendas parlamentares. Poderia ser o ministério do frango, da soja, do gado de corte, do gado leiteiro, quem sabe das almas? elianec@uol.com.br", "tipo": "Artigo de Opinião"}, {"titulo": "Cidade domada", "autor": "Cláudia Antunes", "texto": "RIO DE JANEIRO - Na madrugada da segunda-feira de Carnaval, enquanto a Beija-Flor desfilava no Sambódromo, a polícia do Rio fez uma operação no vizinho morro de São Carlos para prender um traficante. O criminoso foi capturado num tiroteio em que um adolescente de 14 anos foi morto. O São Carlos sedia uma UPP (Unidade de Polícia Pacificadora) que enfrenta problemas de adaptação, com reação do tráfico e casos de corrupção de policiais. Seria saudável que a opinião pública carioca questionasse se valeu a pena arriscar a morte de um garoto pela prisão de um bandido que já deve ter sido substituído na favela. Ainda mais quando se sabe que um dos principais desafios das UPPs é conquistar os jovens, que passam a ter seu cotidiano regulado pela polícia. Ocorre que no Rio vozes questionadoras têm encontrado pouco eco. A cidade vive uma boa fase, mas o oba-oba dos preparativos para a Copa e a Olimpíada domou seu espírito crítico. A Secretaria de Segurança paira acima de ataques, e restrições às obras urbanísticas raramente são levadas em conta. O Estado, por exemplo, acaba de inaugurar uma ponte para a cidade universitária que desemboca numa via expressa já saturada, a Linha Vermelha. Por que não concentra os gastos viários numa nova linha de metrô, em vez de fazer só a extensão para a Barra de uma rota, a zona sul-centro, também congestionada? Agora, há mobilização de urbanistas contra a demolição da primeira hipica da cidade, do século 19, e de um antigo quartel, ambos próximos ao Maracanã. O projeto divulgado para o local é de um parque, mas teme-se que venha a incluir um estacionamento para os Jogos. O Patrimônio municipal diz que ainda analisa o valor histórico-cultural dos edifícios. O Rio não precisa de novas vagas para carros, mas que existam condições para que eles não precisem ser retirados das garagens.", "tipo": "Artigo de Opinião"}, {"titulo": "Leveson e Murdoch", "autor": "Kenneth Maxwell", "texto": "Nesta semana, o inquérito da Comissão Leveson, criada em 2011 pelo primeiro-ministro britânico e presidida pelo juiz Brian Leveson, ouviu depoimentos explosivos. A comissão de inquérito tem o poder de convocar testemunhas, que depõem sob juramento. Desde novembro, ouviu uma sucessão de importantes jornalistas e vítimas de escutas telefônicas. Também ouviu o pai e a mãe de Milly Dowler. A revelação de que o jornal sensacionalista “News of the World” havia instalado uma escuta no celular da estudante assassinada causou forte indignação pública e forçou o primeiro-ministro a dar início ao inquérito. Agora foi a vez da polícia. Sue Akers, vice-comissária-assistente da Scotland Yard, disse a Leveson que pagamentos “regulares, frequentes e ocasionalmente significativos” eram feitos pelo jornal “The Sun” a militares e funcionários da polícia e dos departamentos de saúde e penitenciário do governo. Há provas de que funcionários públicos recebiam remuneração regular do jornal. Os envolvidos nesse tipo de atividade sabiam estar agindo ilegalmente e ocultaram a identidade dos beneficiados, um dos quais recebeu £ 80 mil. Outro jornalista dispunha de £ 150 mil para pagar seus contatos. A informação obtida “não era de interesse público” e, em muitos casos, consistia em “fofocas libélulas”. Akers disse que “as provas revelam uma rede de funcionários públicos corruptos”. O inquérito da Comissão Leveson lembra uma novela britânica. No fim de semana passado, Rupert Murdoch lançou, em Londres, o jornal “Sun on Sunday”, que substituiu o “News of the World”, fechado devido ao escândalo. O novo jornal vendeu 3,26 milhões de cópias. O componente britânico do vasto império de mídia de Murdoch é pequeno. Mas, nos EUA, ele ocupa posição importante. Seu canal de notícias a cabo Fox News dita o tom da direita republicana. As notícias sobre subornos no Reino Unido serão observadas com interesse pelo “New York Times”, que há muito concorre ferozmente com o “Wall Street Journal”, controlado por Murdoch. No Reino Unido, os jornais de Murdoch tomaram a ofensiva. Kelvin MacKenzie, ex-editor do “The Sun”, argumentou que, “se alguém que faz uma denúncia pede dinheiro, que mal há?”. O editor-associado do “The Sun” queixou-se de “uma caça às bruxas em estilo soviético”. Akers respondeu em seu depoimento que “nosso objetivo é revelar crimes, não revelar fontes legítimas”. Enquanto isso, o WikiLeaks começou a divulgar outros milhões de e-mails sigilosos, e Bradley Manning continua detido num presídio militar norte-americano por fazer o mesmo. Nenhum desses documentos foi obtido com suborno. KENNETH MAXWELL escreve às quintas-feiras nesta coluna. Traduzido de PAULO MIGLIACCI.", "tipo": "Artigo de Opinião"}], "2012-03-01_p003": [{"titulo": "Viajar é preciso", "autor": "Luis Álvaro de Oliveira Ribeiro", "texto": "A recente participação do Santos no Mundial de Clubes da Fifa nos obrigou a refletir sobre a colocação do futebol brasileiro no mundo. A derrota nos imputou lições que devem ser aprendidas. Há uma distância física, técnica e até mesmo conceitual entre o futebol que praticamos aqui e o futebol que assistimos apenas pela televisão. Se não buscarmos meios de executar uma reaproximação, o tempo nos colocará ainda mais longe da posição que um dia ocupamos: os melhores do mundo nesse esporte. Os grandes clubes nacionais, em seus tempos mais gloriosos, tinham embates mais frequentes contra os poderosos clubes do velho continente, integrantes das melhores ligas do planeta. Esses jogos contribuíam para que nos mantivéssemos tecnicamente equilibrados com essas equipes. Tinham maior referência e maior conhecimento sobre o que acontecia no resto do mundo. Por vezes o Santos deixou de disputar a Libertadores para realizar essas excursões, tamanha sua relevância. Nesse período, entre 1958 e 1970, disputamos quatro Copas do Mundo e conquistamos três. Por equívocos de planejamento e formulação de calendário, deixamos de realizar partidas contra Barcelona, Milan, Benfica, Manchester United e tantas outras importantes camisas. Os times brasileiros não fazem mais essas viagens. Isso é um grande erro. Quanto o Leste Europeu não pagaria para ver Neymar, Ganso e companhia? Quanto não poderia ter lucrado o Corinthians se tivesse levado o Ronaldo para se apresentar na Ásia? É imperativo que sejam criados intervalos na agenda do futebol para que as agremiações possam se rentabilizar e intercambiar culturas. Após a virada do milênio, por exemplo, foram realizados apenas cinco jogos oficiais entre equipes brasileiras e europeias. É pouco! Não é à toa que, nos últimos 15 anos, o Brasil teve apenas três campeões mundiais — os europeus tiveram dez. Esses embates internacionais também permitem que as marcas dos clubes sejam mais conhecidas no resto do mundo. Hoje, ficamos limitados a aparecer apenas quando conquistamos uma Libertadores. Com a experiência que vivemos com o Santos no final de 2011, percebemos que os clubes brasileiros precisam explorar a força de suas marcas em mercados como o do Japão, que tanto aprecia nosso futebol. Na China, nação com o maior desenvolvimento econômico no planeta, nossa atuação ainda é quase incipiente. Os clubes europeus, porém, já estão presentes nesses locais e aumentam a cada temporada sua atuação no mercado mundial. Já passou da hora, e faço aqui também um mea-culpa, de os grandes clubes se unirem para que exista espaço para três ou quatro amistosos internacionais durante o ano. Não é enforcando uma semana ou apertando, de forma absurda, três jogos em sete dias, como o Internacional foi obrigado a fazer em 2011, que resolvemos a questão. A alteração pela qual passará o calendário em 2013, mudando o período de disputa da Copa do Brasil, será uma oportunidade. Sobretudo nesse momento em que temos no departamento de seleções da CBF alguém que viveu fortemente a experiência de comandar um clube e sentiu na pele essas dificuldades, Andres Sanches. Os detentores dos direitos de transmissão também terão benefícios claros. A maior exposição do nosso futebol vai valorizar o Campeonato Brasileiro, despertando o interesse de novos mercados. Não podemos esperar mais para chamar a atenção do mundo para os nossos clubes, e não apenas para nossa seleção. O futebol brasileiro precisa se preparar, afinal não sabemos quais serão as consequências de uma nova frustração como a ocorrida na Copa de 1950. Convoco os meus companheiros dirigentes para, junto com a CBF e com a televisão, encontrarmos caminhos para que voltemos a ser o país do futebol.", "tipo": "Artigo de Opinião"}, {"titulo": "Um compromisso histórico na construção", "autor": "Miguel Torres", "texto": "Empresários da construção e representantes dos trabalhadores tiveram um choque quando os canteiros das hidrelétricas de Santo Antônio e de Jirau, em Rondônia, e de outras obras do PAC se transformaram em palcos de guerra, com violência de parte a parte, trabalhadores tratados 'manu militari' e greves como consequência. A pronta intervenção da Força Sindical (e, posteriormente, das demais centrais), juntamente com os dirigentes das construtoras, notadamente a Camargo Corrêa e a Odebrecht, levou à conclusão de que era preciso um urgente entendimento para se evitar uma tragédia. Criou-se uma mesa nacional da construção, e a presidente Dilma Rousseff teve a sensibilidade de designar o ministro Gilberto Carvalho para coordená-la. Os representados nessa mesa (governo, trabalhadores e empregadores) se reuniram durante nove meses no Palácio do Planalto para discutir um compromisso nacional que pudesse garantir a paz nas obras, o respeito aos direitos trabalhistas por parte dos empregadores e o cumprimento dos seus deveres por parte dos trabalhadores. Hoje assinaremos, no Palácio do Planalto, na presença da presidente Dilma, o compromisso nacional da indústria da construção para aperfeiçoar as condições de trabalho, com medidas que serão aplicadas nas grandes obras de infraestrutura da Copa do Mundo e do PAC. Trata-se de compromisso histórico, por seu ineditismo, e grandioso, por seu porte. O entendimento garantirá a paz e a continuidade das obras, fundamentais para a manutenção do crescimento e para a criação de riqueza e de empregos. O objetivo do compromisso é propiciar um clima de negociação permanente, inclusive com representação direta dos trabalhadores nos locais de trabalho, para que eles próprios cuidem de manter a paz e de deixar acesa a chama do diálogo. O texto do compromisso definiu diretrizes para o recrutamento, para a pré-seleção e para a seleção de pessoal, o que atingirá de morte a nefanda ação dos 'gatos'. Governo e empregadores se empenharão para qualificar mão de obra; foram definidas regras para a saúde e segurança no trabalho; e se estabeleceram normativas para as relações com a comunidade, que não pode ser prejudicada pela ação de obras gigantescas que acabam pressionando o ambiente local. O compromisso inaugura uma nova fase na negociação trabalhista: a implantação de acordos nacionais. Eles, apesar de não gerarem os efeitos de uma negociação coletiva, avançam quando estabelecem condições mínimas de trabalho, saúde e segurança. A mesa nacional será institucionalizada como espaço permanente e tripartite de negociação, podendo ser acionada a qualquer momento. O compromisso não é imposto por lei, mas como consequência de um processo de entendimento que será honrado e cumprido com a adesão das empreiteiras obra por obra. O exemplo dessa importante vitória nos conduz agora à luta para levar a conquista aos demais setores econômicos onde ainda há problemas entre capital e trabalho. O Brasil está crescendo, modernizando-se e não pode conviver mais com práticas como a do trabalho quase escravo e com o desrespeito às leis, aos bons costumes e à solidariedade entre as pessoas.", "tipo": "Artigo de Opinião"}], "2012-03-03_p002": [{"titulo": "Proposta pragmática", "autor": "Desconhecido", "texto": "Com ou sem a legalização do aborto, decisão que exige referendo, o governo deveria desde já fazer campanha pelo uso da pílula do dia seguinte. Flexibilizar a legislação sobre o aborto, permitido hoje apenas em caso de risco de morte para a mãe ou de gravidez resultante de estupro, não é uma iniciativa que se tome sem elevados custos políticos. Resistências das principais confissões religiosas se fazem notar com grande vigor, e não se encontra, nos que defendem a opinião oposta, comparável poder de organização na esfera partidária. O peso das convicções pessoais é decisivo, sempre que se fala em aborto. Esta Folha defende que uma consulta popular seria o melhor meio de empreender a clara discussão sobre mudanças na lei. A comissão do Senado para a reforma do Código Penal parece ter tomado um caminho tortuoso para tratar do tema. Propõe que o aborto deixe de ser crime em outras situações, além das já previstas na lei. Seria permitida a interrupção da gravidez, assim, quando comprovada anencefalia do feto ou quando este “padecer de graves e incuráveis anomalias”, mediante atestado de dois médicos. Também se recorreria à opinião de um médico para permitir o aborto por vontade da gestante, se constatado que a mulher não apresenta “condições psicológicas de arcar com a maternidade”. O mecanismo imaginado pela comissão não deixará, certamente, de provocar enfáticos protestos nos setores antiabortistas — sem constituir, por outro lado, uma resposta à clássica reivindicação feminista de que a continuidade da gravidez é, em última análise, uma opção a ser tomada conscientemente pela mãe. Entregar tal responsabilidade à tutela subjetiva de um médico parece uma afronta à dignidade da mulher, quando não uma delegação abusiva de poder, ou mero convite à produção de atestados paternalistas e de duvidoso valor. Enquanto não se promove uma discussão desimpedida sobre o tema, no contexto de um referendo popular, o aborto continua sendo um gravíssimo problema de saúde pública. Calcula-se em mais de um milhão o número de abortos clandestinos feitos anualmente — terceira causa de mortalidade materna no país, ao lado de hemorragias. Parte do problema seria evitado se, a exemplo das campanhas a respeito de preservativos, o poder público se empenhasse em divulgar ao máximo e distribuir com eficiência a chamada pílula do dia seguinte. As resistências religiosas a esse mecanismo contraceptivo, como se sabe, são intensas — mas não impediriam que raciocínios de saúde pública preponderassem nas decisões dos governantes, como já acontece com a camisinha. Sem um mínimo de coragem para tratar do tema, conclui-se, nenhuma solução real será atingida, por mais artificiosa que seja a imaginação dos juristas encarregados de propor alterações na lei.", "tipo": "Editorial"}, {"titulo": "Corte na inovação", "autor": "Desconhecido", "texto": "O governo brasileiro afirma dar alta prioridade ao reforço da competitividade do setor produtivo. Entre os esforços nessa direção, as autoridades enfatizam o estímulo às áreas irmãs da ciência e tecnologia e da pesquisa e desenvolvimento. Essas atividades são a base para a inovação: a criação de novos produtos e processos e sua difusão pela economia — que se torna mais eficiente e, portanto, mais competitiva. No entanto, no recente anúncio de cortes no Orçamento da União, o MCTI (Ministério da Ciência, Tecnologia e Inovação) foi um dos mais sacrificados. O corte de verbas chegou a 22%, o que reduziu em R$ 1,5 bilhão os recursos à disposição da pasta para despesas não obrigatórias. Contradições entre o discurso e a prática do governo estão longe de constituir novidade. Basta lembrar que em 2011, ao anunciar cortes no Orçamento, o governo prometeu poupar os investimentos — e, ao final do ano, constatou-se que eles minguaram para 1% do PIB (contra 1,2% em 2010). O arrocho que o Ministério da Fazenda ora pretende impor ao MCTI tem vários agravantes. O primeiro é que o saudável aumento do orçamento da pasta observado sobretudo entre 2008 e 2010 já foi interrompido em 2011. A despesa empenhada pelo ministério (excluindo pessoal e encargos) recuou de R$ 5,4 bilhões para R$ 5,1 bilhões. No caso do MCTI, entre as despesas classificadas como não obrigatórias, há algumas cuja redução obviamente tende a ser contraproducente. É o caso das despesas do programa Ciência sem Fronteiras, que tem apoiado um aumento importante do fluxo de estudantes brasileiros para universidades no exterior, bem como a vinda de pesquisadores estrangeiros para colaborar em pesquisas no Brasil. O MCTI conta com uma expressiva fonte de recursos, o FNDCT (Fundo Nacional de Desenvolvimento Científico e Tecnológico), constituído por recursos recolhidos em alguns setores econômicos (como petróleo e energia elétrica). Entre 2006 e 2010, esse fundo arrecadou R$ 11,8 bilhões — mas a Fazenda reteve mais de 25% dos recursos, em detrimento do MCTI. Somando gastos públicos e privados, o Brasil investe apenas 1,2% do PIB no esforço de inovação, um nível baixo para os padrões internacionais. É notório que o avanço da inovação exige compromissos de longo prazo, dado o alto risco envolvido. Iniciativas intermitentes solapam as perspectivas de sucesso. Os cortes no MCTI são um erro.", "tipo": "Editorial"}, {"titulo": "Militares de pijama", "autor": "Helio Schwartsmann", "texto": "SÃO PAULO - Para mim, a Comissão da Verdade é absolutamente necessária, e a indicação de Eleonora Menicucci para a pasta das Mulheres foi o ponto alto da reforma ministerial da presidente Dilma Rousseff. Não concordo, portanto, com nenhuma linha dos manifestos com críticas ao governo que oficiais da reserva vêm publicando. Numa República presidencialista, o comandante em chefe das Forças Armadas é o presidente. Todos os militares da ativa lhe devem obediência, independentemente de partilharem ou não de suas ideias e políticas. Indo um pouco mais longe, acho que daria até para argumentar que os oficiais da reserva remunerada, que podem eventualmente ser chamados para o serviço ativo, também estejam submetidos ao regime disciplinar e hierárquico dos militares. Parece-me um exagero, porém, que as leis e regulamentos castrenses permitam enquadrar e punir por desrespeito à hierarquia os oficiais reformados, que são, para todos os efeitos, cidadãos aposentados. Se essas regras são constitucionais, temos uma situação em que as obrigações diferenciadas exigidas dos militares se tornam perpétuas, o que se assemelha mais a disposições da ordem escravocrata do que aos contratos típicos do mundo livre. É bem verdade que, em 1986, sob o governo Sarney, foi aprovada a lei n° 7524, que faculta aos militares inativos “opinar livremente sobre assunto político, e externar pensamento e conceito ideológico, filosófico ou relativo à matéria pertinente ao interesse público”. Mas essa salvaguarda fica ainda aquém daquelas que constituem o núcleo das liberdades fundamentais asseguradas pela Carta de 1988 e pela Declaração Universal dos Direitos Humanos. Não há nenhuma razão para privar pelo menos o oficial reformado dessas proteções. Não deixa de ser irônico que agora se invoque para os militares as garantias individuais que as Forças Armadas tão amiúde ignoraram.", "tipo": "Artigo de Opinião"}, {"titulo": "Minhocas e amebas", "autor": "Fernando Rodrigues", "texto": "BRASÍLIA - Ontem, na posse do novo ministro da Pesca, Marcelo Crivella, estava na plateia a ministra das Mulheres, Eleonora Menicucci. Entrou muda e saiu calada. Nessas ocasiões, em meio à discurseira, há aplausos e palavras de apoio. Quando Crivella fez citações religiosas, foi possível ouvir alguém dizer “glória a Deus”. Essas duas nomeações recentes, a de Crivella e a de Menicucci, mostram como há ainda uma assimetria notável no trato de determinados temas dentro do Estado brasileiro. A ministra das Mulheres, como se sabe, é uma histórica defensora dos direitos iguais entre os sexos e da descriminalização do aborto. No governo, Menicucci rendeu-se ao discurso anódino do Planalto. Aborto? Fica para o Congresso decidir. E não se fala mais nisso. Já Crivella, criacionista e descrente da teoria da evolução, pode derrocar quantas vezes quiser o muro que deveria separar igreja e Estado. Como senador, em 2009 compartilhou uma dúvida com seus colegas — “O surgimento da vida a partir de uma ameba traz o primeiro questionamento: e a ameba, surgiu de onde?”. O discurso sobre o ser unicelular está em bit.ly/crivella. Ontem, repetiu não saber “colocar a minhoca no anzol”, apesar de ter virado ministro da Pesca. Olhou para Dilma Rousseff. Compungido, amparou-se na força divina: “Muitas vezes, Deus não chama os mais qualificados, não escolhe os mais qualificados. Mas sempre Deus qualifica os escolhidos”. Ou seja, tornar-se um bom ou mau ministro é também uma questão de fé. Crivella é do PRB e bispo licenciado da Igreja Universal do Reino de Deus. Igreja e partido entram no governo com a missão de vocalizar os anseios de políticos evangélicos. Em meio a metáforas e a discursos sobre minhocas e amebas, Dilma Rousseff oficializa, assim, mais um oxímoro da administração petista, o excêntrico Estado laico-cristão.", "tipo": "Artigo de Opinião"}, {"titulo": "Síria e seus precedentes", "autor": "Claudia Antunes", "texto": "RIO DE JANEIRO - Depois de Kosovo, Afeganistão, Iraque e Líbia, somente delírios de onipotência podem explicar que se defenda de boa-fé uma intervenção militar externa para pôr fim à ditadura na Síria. Apenas em Kosovo e na Líbia as intervenções foram justificadas primariamente por razões humanitárias, mas no Afeganistão e no Iraque recorreu-se, depois, ao argumento de que a derrubada dos fundamentalistas do Talibã e do tirano Saddam Hussein era suficiente para desculpar os erros da ocupação. Em todos os casos, entretanto, a ação estrangeira provocou milhares de vítimas em períodos curtos de tempo. E aprofundou divisões sociais, étnicas e religiosas que tornaram inviável que populações que ocupam o mesmo espaço político pudessem, por si só, chegar a um acordo de convivência. Em Kosovo, passou em branco uma investigação europeia que acusou o governo pós-guerra de tortura e tráfico de órgãos. Claro que é possível fazer um exercício de história contrafactual e imaginar quantos teriam perecido sem essas intervenções, do mesmo modo que todo dia há notícias de dezenas de mortos pela repressão síria. Mas a lição desconcertante das revoltas árabes é que foi nas ditaduras menos isoladas externamente, Egito e Tunísia, que as sociedades se desenvolveram de forma pluralista o suficiente para não deixar morrer na praia as reivindicações por liberdade e dignidade, mesmo que o percurso à frente delas seja difícil. A rebelião por democracia na Síria pode acabar logo, com a vitória de um dos lados — um cenário improvável. Mas também pode provocar ainda milhares de mortos numa guerra por procuração entre sauditas e iranianos, que só pode ser detida por um acordo de transição — como os que encerraram as guerras civis na América Central, no fim da Guerra Fria. Os que desejam poupar vidas devem insistir em pressões para isso.", "tipo": "Artigo de Opinião"}, {"titulo": "De princesa a presidenta", "autor": "Marta Suplicy", "texto": "Na eleição da presidenta Dilma Rousseff, fiquei extremamente tocada com a ênfase que ela deu à questão da mulher. Tanto no discurso no dia em que ganhou quanto no da posse, as palavras “compromisso” e “protagonismo feminino” soaram como música aos meus ouvidos e nos de milhares de mulheres do Brasil. Depois, fiquei pensando quão difícil seria colocar essas intenções em ação. A resistência dos partidos em fazer indicações femininas, a timidez de muitas mulheres em pensarem-se como protagonistas, o desinteresse nas questões da mulher, os embates ideológicos... De fato, muitas montanhas a serem escaladas. A pergunta fundamental que me faço hoje é: fez diferença ter uma mulher presidente? Fez. Por motivos que não têm a ver com qualquer movimento específico da presidente e também por ações concretas que ela implementou. A mera presença de uma mulher no comando do país provocou, de imediato, um impacto. Consequência que possibilitou a mim a vice-presidência do Senado depois de 185 anos de hegemonia masculina e a nomeação da primeira diretora-geral da Casa. A presidente se debruçou com cuidado sobre os nomes femininos para os ministérios. Os partidos nunca “encontram nomes”. Sei a mão forte que é necessária para atingir o número de nove ministras a que Dilma atingiu. Isso sem falar na nomeação de mulheres para o Judiciário ou na substituição dos atendentes do avião presidencial por aeromoças. Isso não teria acontecido sem a determinação de Dilma. Lembro que FHC teve três ministras, e Lula, cinco. Voltando ao simbólico, ainda não temos a medida. Serão necessárias algumas gerações para saber o efeito de ver, na TV, uma mulher falando como chefe da nação. Quanto tempo para as meninas passarem do brincar de princesa ao brincar de presidente? O príncipe não passará mais no cavalo branco, mas a autonomia e o poder são ingredientes muito atraentes. O cavaleiro não virá resgatar, será cúmplice e um igual. De maior impacto para as mulheres, temos as ações do mês da mulher na área da saúde. Não é pouco reduzir 20% dos casos de mortalidade materna em um ano e colocar 22% a mais de recursos no combate ao câncer feminino. Os caminhos políticos são árduos, e o recrudescimento do conservadorismo tem tido um preço — que não favorece as milhares de mulheres que morrem por aborto nem os gays trucidados por homofobia. A presidente tem sido cautelosa no assunto. A nomeação de uma ministra que pensa diferentemente dessas forças foi um alento nesse impasse que parece uma muralha erigida por alguns no país e no Congresso Nacional. Viva o dia 8 de março!", "tipo": "Artigo de Opinião"}]}
+;
+
+const PAGES = [
+  { key: "2012-03-01_p002", date: "1 de março de 2012", page: 2, img: "data/2012-03-01_002.jpg" },
+  { key: "2012-03-01_p003", date: "1 de março de 2012", page: 3, img: "data/2012-03-01_003.jpg" },
+  { key: "2012-03-03_p002", date: "3 de março de 2012", page: 2, img: "data/2012-03-03_002.jpg" },
+];
+
+let current = 0;
+
+function buildPanels() {
+  const container = document.getElementById("panels-container");
+  const dots = document.getElementById("nav-dots");
+
+  PAGES.forEach((p, i) => {
+    const articles = DATA[p.key] || [];
+
+    // panel
+    const panel = document.createElement("div");
+    panel.className = "example-panel" + (i === 0 ? " active" : "");
+    panel.id = "panel-" + i;
+
+    const imgDiv = `
+      <div class="img-wrapper">
+        <img src="${p.img}" alt="FSP ${p.date} p.${p.page}" loading="lazy">
+        <div class="img-meta">FSP &nbsp;·&nbsp; ${p.date} &nbsp;·&nbsp; página ${p.page} &nbsp;·&nbsp; ${articles.length} artigos extraídos</div>
+      </div>`;
+
+    const cards = articles.map((a, j) => `
+      <div class="article-card" id="card-${i}-${j}" onclick="toggleCard(${i},${j})">
+        <div class="article-tipo">${a.tipo || "Artigo"}</div>
+        <div class="article-titulo">${escapeHtml(a.titulo)}</div>
+        <div class="article-autor">${escapeHtml(a.autor)}</div>
+        <span class="article-toggle"></span>
+        <div class="article-texto">${escapeHtml(a.texto)}</div>
+      </div>`).join("");
+
+    panel.innerHTML = imgDiv + `<div class="articles-panel">${cards}</div>`;
+    container.appendChild(panel);
+
+    // dot
+    const dot = document.createElement("button");
+    dot.className = "dot" + (i === 0 ? " active" : "");
+    dot.title = `${p.date}, página ${p.page}`;
+    dot.onclick = () => goTo(i);
+    dots.appendChild(dot);
+  });
+
+  updateNav();
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/\n/g,"<br>");
+}
+
+function goTo(n) {
+  document.getElementById("panel-" + current).classList.remove("active");
+  document.querySelectorAll(".dot")[current].classList.remove("active");
+  current = n;
+  document.getElementById("panel-" + current).classList.add("active");
+  document.querySelectorAll(".dot")[current].classList.add("active");
+  updateNav();
+}
+
+function navigate(dir) { goTo(current + dir); }
+
+function updateNav() {
+  document.getElementById("prev-btn").disabled = current === 0;
+  document.getElementById("next-btn").disabled = current === PAGES.length - 1;
+  const p = PAGES[current];
+  document.getElementById("nav-label").textContent =
+    `${p.date}  ·  página ${p.page}  (${current+1} de ${PAGES.length})`;
+}
+
+function toggleCard(i, j) {
+  document.getElementById(`card-${i}-${j}`).classList.toggle("open");
+}
+
+buildPanels();
+</script>
+</body>
+</html>
