@@ -1,5 +1,9 @@
 # Extração de Textos de Imagens de Jornais
 
+## Autores
+![Ana Carolina Erthal](https://img.shields.io/badge/Ana%20Carolina%20Erthal-FGV--EMAp-blue)
+![João Feres Júnior](https://img.shields.io/badge/João%20Feres%20Júnior-IESP--UERJ-blue)
+
 
 Ferramenta para extrair automaticamente os textos de imagens de páginas de jornal, organizando os resultados em um arquivo Excel.
 
