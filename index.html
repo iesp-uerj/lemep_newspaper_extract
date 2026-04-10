@@ -101,6 +101,23 @@
     color: #ccc;
     font-style: italic;
   }
+  .authors-bar {
+    background: var(--cream);
+    border-bottom: 1px solid var(--rule);
+    text-align: center;
+    padding: 10px 24px;
+    font-family: "Courier New", monospace;
+    font-size: .78rem;
+    color: #555;
+    letter-spacing: .04em;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+  }
+  .authors-sep {
+    color: var(--rule);
+  }
   .hero-badges {
     margin-top: 28px;
     display: flex;
@@ -451,6 +468,12 @@
     <span class="badge">openpyxl</span>
   </div>
 </header>
+
+<div class="authors-bar">
+  <span>Ana Carolina Erthal &mdash; FGV EMAp</span>
+  <span class="authors-sep">·</span>
+  <span>João Feres Júnior &mdash; IESP UERJ</span>
+</div>
 
 <!-- PIPELINE -->
 <section id="como-funciona">
